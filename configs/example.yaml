@@ -1,0 +1,60 @@
+project:
+  seed: 20260826
+
+data:
+  raw_dir: examples
+  metadata_dir: runs/example_metadata
+  target_key: ip
+  split: {train_fraction: 0.50, validation_fraction: 0.25}
+  statistics: {domain: ai, sample_count: 3, pixels_per_sample: 4096}
+  buckets:
+    - {name: small, source_shape: [128, 160], target_shape: [64, 80], probability: 0.5}
+    - {name: wide, source_shape: [128, 192], target_shape: [64, 96], probability: 0.5}
+  augmentation: {horizontal_flip: true}
+  train_samples_per_bucket: 8
+  validation_samples_per_bucket: 2
+  cache_size: 2
+  loader: {num_workers: 0, pin_memory: false}
+  microbatch_sizes: {small: 1, wide: 1}
+
+model:
+  in_channels: 1
+  out_channels: 1
+  model_channels: 16
+  channel_mult: [1, 2, 2]
+  num_blocks: 1
+  embedding_channels: 32
+  num_heads: 2
+  dropout: 0.05
+  use_scale_embedding: true
+  conditioning: {enabled: true, encoder_channels: 8, max_encoder_channels: 16}
+
+edm:
+  sigma_data: 1.0
+  loss: {sigma_data: 1.0, p_mean: -0.5, p_std: 1.2}
+  sampler: {num_steps: 4, sigma_min: 0.002, sigma_max: 5.0, rho: 7.0, solver: heun}
+
+conditioning:
+  enabled: true
+  subset_probabilities: {unconditional: 0.25, well: 0.25, horizon: 0.25, both: 0.25}
+  well: {min_wells: 1, max_wells: 2, min_spacing_fraction: 0.08, max_bottom_truncation_fraction: 0.5}
+  horizon:
+    archive_name: data.npz
+    min_horizons: 1
+    max_horizons: 3
+    min_spacing_fraction: 0.04
+    vertical_bins: 1
+    gaussian_sigma_pixels: 1.5
+    minimum_valid_fraction: 0.25
+
+training:
+  seed: 20260828
+  max_updates: 2
+  gradient_accumulation_steps: 1
+  optimizer: {learning_rate: 0.00005, betas: [0.9, 0.999], weight_decay: 0.0, warmup_updates: 2}
+  mixed_precision: fp32
+  gradient_clip_norm: 1.0
+  ema: {decay: 0.9999, warmup: true}
+  log_every_updates: 1
+  validate_every_updates: 1
+  checkpoint_every_updates: 1

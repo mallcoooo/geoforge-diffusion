@@ -1,0 +1,64 @@
+project:
+  seed: 20260826
+
+data:
+  raw_dir: data/synthetic
+  metadata_dir: data/metadata
+  target_key: ip
+  split: {train_fraction: 0.80, validation_fraction: 0.10}
+  statistics: {domain: ai, sample_count: 512, pixels_per_sample: 32768}
+  buckets:
+    - {name: square_128, source_shape: [512, 512], target_shape: [128, 128], probability: 0.20}
+    - {name: wide_128x256, source_shape: [512, 1024], target_shape: [128, 256], probability: 0.20}
+    - {name: square_256, source_shape: [512, 512], target_shape: [256, 256], probability: 0.20}
+    - {name: wide_256x512, source_shape: [512, 1024], target_shape: [256, 512], probability: 0.20}
+    - {name: square_512, source_shape: [512, 512], target_shape: [512, 512], probability: 0.20}
+  augmentation: {horizontal_flip: true}
+  train_samples_per_bucket: 4096
+  validation_samples_per_bucket: 32
+  cache_size: 2
+  loader: {num_workers: 2, pin_memory: true, prefetch_factor: 2}
+  microbatch_sizes: {square_128: 32, wide_128x256: 16, square_256: 8, wide_256x512: 4, square_512: 2}
+
+model:
+  in_channels: 1
+  out_channels: 1
+  model_channels: 128
+  channel_mult: [1, 1, 2, 2, 4]
+  num_blocks: 2
+  embedding_channels: 512
+  num_heads: 8
+  dropout: 0.05
+  use_scale_embedding: true
+  conditioning: {enabled: true, encoder_channels: 32, max_encoder_channels: 128}
+
+edm:
+  sigma_data: 1.0
+  loss: {sigma_data: 1.0, p_mean: -0.5, p_std: 1.2}
+  sampler: {num_steps: 32, sigma_min: 0.002, sigma_max: 80.0, rho: 7.0, solver: heun}
+
+conditioning:
+  enabled: true
+  subset_probabilities: {unconditional: 0.20, well: 0.25, horizon: 0.25, both: 0.30}
+  well: {min_wells: 1, max_wells: 4, min_spacing_fraction: 0.08, max_bottom_truncation_fraction: 0.50}
+  horizon:
+    archive_name: data.npz
+    key: horizon_surfaces_time_samples
+    min_horizons: 4
+    max_horizons: 10
+    min_spacing_fraction: 0.04
+    vertical_bins: 3
+    gaussian_sigma_pixels: 1.5
+    minimum_valid_fraction: 0.25
+
+training:
+  seed: 20260828
+  max_updates: 200000
+  gradient_accumulation_steps: 2
+  optimizer: {learning_rate: 0.00005, betas: [0.9, 0.999], weight_decay: 0.0, warmup_updates: 2000}
+  mixed_precision: bf16
+  gradient_clip_norm: 1.0
+  ema: {decay: 0.9999, warmup: true}
+  log_every_updates: 20
+  validate_every_updates: 1000
+  checkpoint_every_updates: 1000
